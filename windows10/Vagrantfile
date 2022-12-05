@@ -1,10 +1,28 @@
 # vagrant plugin install vagrant-vbguest
 # vagrant plugin install vagrant-vbguest
+require 'json'
+if  ENV['VAGRANT_PASS'].nil?
+    raise 'You must set the environment variables "VAGRANT_PASS".'
+end
+vagrant_pass = ENV['VAGRANT_PASS']
+provider=ENV['PROVIDER'] || 'vmware_desktop'
+vm_name = "Windows10"
+vm_hostname = "vagrant-windows10"
+vm_size = {"cpus" => 2, "memory" => 2048}
 
+# Attach an extra disk if the VM defaults aren't enough...
+extra_disk_enabled = true
+extra_disk_size_gb = 25
+extra_disk_mount_point = "/srv/data"
 
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
+# Location of the external files used by this script...
+vagrant_assets = File.dirname(__FILE__) + "/vagrant"
 
+# Someone may need to (locally) override the VM size for some specific task...
+vm_size_override = File.dirname(__FILE__) + "/.vagrant_size.json"
+if File.exists?(vm_size_override)
+  vm_size = JSON.parse(File.read(vm_size_override))
+end
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
@@ -26,10 +44,19 @@ Vagrant.configure("2") do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
 
-  config.vm.box = "gusztavvargadr/windows-10"
+  config.vm.box = "baunegaard/win10pro-en"
   config.vm.provision "shell", inline: $script
-  config.vbguest.auto_update =
-  config.vbguest.no_remote = false
+
+  # Support git operations inside the VM. The file provisioner requires files to exist,
+  # which in this case is a good thing as it prevents commits attributed to wrong users...
+  config.vm.provision "file", source: "~/.gitconfig", destination: "~/.gitconfig"
+
+  # Make the local user's SSH key reachable by the main provisioning script...
+  config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "/tmp/id_rsa.pub"
+  config.vm.provision :shell, inline: "mkdir -p %USERPROFILE%/git"
+
+#  config.vm.provision :shell, inline: "sudo apt-get -yqq remove azure-cli -y && sudo apt-get -yqq autoremove"
+
   # vagrant vbguest --do install
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -72,7 +99,17 @@ Vagrant.configure("2") do |config|
     # Customize the amount of memory on the VM:
     vb.memory = "8000"
   end
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.vbguest.auto_update =
+    vb.vbguest.no_remote = false
+
+  end
+
+
+
   config.vm.provider "virtualbox" do |v|
+
     v.check_guest_additions = false
     v.memory = 8000
     v.cpus = 4
@@ -84,6 +121,30 @@ Vagrant.configure("2") do |config|
   end
 
 
+  config.vm.provider "vmware_desktop" do |v|
+    # env: {"VAGRANT_PASS"=>Shellwords.escape(ENV['VAGRANT_PASS'])}
+    # config.vm.synced_folder ".", "/home/vagrant/ansible", owner: "vagrant",
+    #   group: "vagrant", mount_options: ["uid=1000", "gid=1000"]
+
+
+    # config.vm.synced_folder "../", "/home/vagrant/git/thisrepo", owner: "vagrant",
+    #   group: "vagrant", mount_options: ["uid=1000", "gid=1000"]
+
+    v.gui = true
+    config.vm.network "private_network" #, type: dhcp
+    # config.ssh.forward_agent = true
+    v.vmx["memsize"] = vm_size["memory"]
+    v.vmx["numvcpus"] = vm_size["cpus"]
+    v.vmx["displayName"] = vm_name
+    v.vmx["ethernet0.present"] = "TRUE"
+    v.vmx["ethernet0.connectionType"] = "nat"
+
+    # Enable full DND
+    v.vmx["isolation.tools.dnd.disable"] = "FALSE"
+    v.vmx["isolation.tools.copy.disable"] = "FALSE"
+    v.vmx["isolation.tools.paste.disable"] = "FALSE"
+    # v.vmx_custom_settings = [['vhv.enable', 'True']]
+  end
 
   # View the documentation for the provider you are using for more
   # information on available options.
