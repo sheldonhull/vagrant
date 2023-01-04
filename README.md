@@ -1,5 +1,9 @@
 # Vagrant
 
+## Install Taskfile
+
+[Install Taskfile](https://taskfile.dev/installation/) and run `task` to see list of prebuilt tasks that will setup and run/bring down the machines.
+
 ## Snippets
 
 For virtual box guest additions.
