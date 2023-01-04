@@ -28,11 +28,18 @@ end
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 $script = <<-SCRIPT
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+Set-ExecutionPolicy Bypass -Scope Process -Force;
+# install choco
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 choco install googlechrome powershell-core -y
 choco install virtualbox-guest-additions-guest.install -y
+choco install microsoft-windows-terminal -y
+choco install vscode -y
+# other apps manually grabbed
+New-Item -ItemType Directory -Path 'c:/temp' -Force
 invoke-webrequest -Uri 'https://downloads.1password.com/win/1PasswordSetup-latest.exe' -OutFile 'c:/temp/1PasswordSetup-latest.exe'
-
+# Scoop Installation
+iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
 SCRIPT
 #. 'c:/temp/1PasswordSetup-latest.exe' --silent
 
