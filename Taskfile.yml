@@ -1,5 +1,5 @@
 ---
-version: '3'
+version: "3"
 silent: true
 output: prefixed
 vars:
@@ -49,9 +49,37 @@ tasks:
     cmds:
       - |
         vagrant up
+  windows10:halt:
+    desc: Shutdown windows 10 vagrant box
+    dir: windows10
+    silent: false
+    cmds:
+      - |
+        vagrant halt
   windows10:provision:
     desc: run the Windows10 provisioning commands
     dir: windows10
+    silent: false
+    cmds:
+      - |
+        vagrant provision
+  ubuntu-kinetic:up:
+    desc: Start up vagrant box
+    dir: ubuntu-kinetic
+    silent: false
+    cmds:
+      - |
+        vagrant up
+  ubuntu-kinetic:halt:
+    desc: Shutdown vagrant box
+    dir: ubuntu-kinetic
+    silent: false
+    cmds:
+      - |
+        vagrant halt
+  ubuntu-kinetic:provision:
+    desc: run the Ubuntu-kinetic provisioning commands
+    dir: ubuntu-kinetic
     silent: false
     cmds:
       - |

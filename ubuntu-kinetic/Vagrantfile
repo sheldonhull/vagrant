@@ -1,0 +1,213 @@
+require 'json'
+if  ENV['VAGRANT_PASS'].nil?
+    raise 'You must set the environment variables "VAGRANT_PASS".'
+end
+vagrant_pass = ENV['VAGRANT_PASS']
+provider=ENV['PROVIDER'] || 'vmware_desktop'
+ubuntu_release = "22.10"
+ubuntu_release_qualified = "generic/ubuntu2210"
+# ubuntu_codenames = {"16.04" => "xenial", "18.04" => "bionic", "20.04" => "focal", "22.04" => "jammy", "22.10" => "kinetic"}
+ubuntu_codenames = {"16.04" => "xenial", "18.04" => "bionic", "20.04" => "focal", "22.04" => "jammy", "22.10" => "kinetic"}
+
+# This is the minimum customization necessary but, to tailor this configuration
+# to a specific project, you should also edit the "vagrant/provision.sh" script...
+vm_name = "ubuntu-#{ubuntu_release}-#{ubuntu_codenames[ubuntu_release]}"
+vm_hostname = "vagrant-ubuntu-#{ubuntu_codenames[ubuntu_release]}"
+vm_size = {"cpus" => 2, "memory" => 2048}
+
+# Attach an extra disk if the VM defaults aren't enough...
+extra_disk_enabled = true
+extra_disk_size_gb = 25
+extra_disk_mount_point = "/srv/data"
+
+# Location of the external files used by this script...
+vagrant_assets = File.dirname(__FILE__) + "/vagrant"
+
+# Someone may need to (locally) override the VM size for some specific task...
+vm_size_override = File.dirname(__FILE__) + "/.vagrant_size.json"
+if File.exists?(vm_size_override)
+  vm_size = JSON.parse(File.read(vm_size_override))
+end
+
+
+
+Vagrant.configure("2") do |config|
+  # config.vm.synced_folder ".", "/vagrant", disabled: false
+  # config.vm.box = "bflance/ubuntu-20.10-desktop"
+  config.vm.box = ubuntu_release_qualified # "generic/#{ubuntu_codenames[ubuntu_release]}64"
+  #  config.vm.box = "ubuntu/#{ubuntu_codenames[ubuntu_release]}64"
+  config.vm.hostname = vm_hostname
+
+  # REMOVED: config.ssh.keep_alive = true
+
+  # Support git operations inside the VM. The file provisioner requires files to exist,
+  # which in this case is a good thing as it prevents commits attributed to wrong users...
+
+
+
+  config.vm.provision "file", source: "~/.gitconfig", destination: "~/.gitconfig"
+
+  # Make the local user's SSH key reachable by the main provisioning script...
+  config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "/tmp/id_rsa.pub"
+
+  $script = <<-SHELL
+    # fix annoying problem that sudo cannot resolve host ubuntu-xenial + times out
+    echo "127.0.0.1 $(hostname)" >> /tmp/prefix
+    cp /etc/hosts /tmp/hosts
+    sudo sh -c 'cat /tmp/prefix /tmp/hosts > /etc/hosts'
+
+
+  SHELL
+  config.vm.provision :shell, name: "resolve dns issues", inline: $script, privileged: false
+  config.vm.provision :shell, name: "apt update", inline: "sudo apt-get -yqq update"
+
+
+
+  # Perform base-system customizations and install project-specific dependencies...
+  # config.vm.provision "shell", path: "#{vagrant_assets}/provision.sh",
+  # privileged: false  # ...run as the "vagrant" user.
+
+  # override.vm.synced_folder ".", "/home/vagrant/shared"
+
+  # Add Google Chrome repository
+  # config.vm.provision :shell, inline: "wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub|sudo apt-key add -"
+  # config.vm.provision :shell, inline: "sudo sh -c 'echo \"deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main\" > /etc/apt/sources.list.d/google.list'"
+   # Permit anyone to start the GUI
+
+  # # Update repositories
+
+
+  # config.vm.provision :shell, name: "temp add dns server", inline: "echo 'nameserver 8.8.8.8' | sudo tee /etc/resolvconf/resolv.conf.d/base > /dev/null" #https://askubuntu.com/questions/91543/apt-get-update-fails-to-fetch-files-temporary-failure-resolving-error
+  config.vm.provision :shell, name: "apt full-upgrade", inline: "sudo apt-get -yqq clean && sudo apt-get -y full-upgrade || echo 'apt-get update failed, attempting to continue'"
+
+  # # Upgrade installed packages
+  config.vm.provision :shell, name: "apt upgrade", inline: "sudo apt-get -yqq upgrade || echo 'apt-get upgrade failed, attempting to continue'"
+
+  # Add desktop environment
+  # config.vm.provision :shell, inline: "sudo apt-get -yqq install --no-install-recommends ubuntu-desktop"
+  #config.vm.provision :shell, inline: "sudo apt-get -yqq install --no-install-recommends virtualbox-guest-dkms virtualbox-guest-utils virtualbox-guest-x11"
+  # Add `vagrant` to Administrator
+  config.vm.provision :shell, name: "add vagrant group membership", inline: "sudo usermod -a -G sudo vagrant"
+
+  # Add Google Chrome
+  # config.vm.provision :shell, inline: "sudo apt-get -yqq install -y google-chrome-stable"
+
+  # Add Chromium & configure as default
+  config.vm.provision :shell, name: "install chrome", inline: "sudo apt-get -yqq install curl wget git"
+  # config.vm.provision :shell, name: "snap install chromium", inline: "sudo snap install chromium"
+  config.vm.provision :shell, name: "apt install chromium snapd", inline: "sudo apt-get install -yqq chromium-browser snapd"
+
+  config.vm.provision :shell, name: "snap-store", inline: "sudo snap install snap-store"
+  config.vm.provision :shell, name: "install ubuntu desktop and xdg-utils", inline: "sudo apt-get install -yqq --no-install-recommends ubuntu-desktop xdg-utils"
+  config.vm.provision :shell, name: "set ui as default target", inline: "sudo systemctl set-default graphical.target"
+
+#   config.vm.provision :shell, name: "set default browser", inline: "xdg-settings set default-web-browser chromium-browser.desktop"
+  # Disable Ubuntu Desktop Lockscreen
+  config.vm.provision :shell, name: "set ubuntu lock enabled false", inline: "gsettings set org.gnome.desktop.screensaver lock-enabled false"
+
+  # Default to dark theme
+  config.vm.provision :shell, name: "set ubuntu dark theme", inline: "gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'"
+
+  # config.vm.provision :shell, inline: "sudo apt-get install -y xfce4"
+  # config.vm.provision :shell, inline: "sudo sed -i 's/allowed_users=.*$/allowed_users=anybody/' /etc/X11/Xwrapper.config"
+
+
+  # Add Firefox
+  # config.vm.provision :shell, inline: "sudo apt-get -yqq install -y firefox"
+  # config.vm.provision :shell, name: "remove azure cli", inline: "sudo apt-get -yqq remove azure-cli -y && sudo apt-get -yqq autoremove"
+  config.vm.provision :shell, name: "add vagrant pass for ansible or other usage", inline: "echo '#{vagrant_pass}' > /home/vagrant/.vault_pass"
+
+
+  # config.vm.provision :shell, inline: "ansible-galaxy collection install jaybeede.linux_desktop"
+
+  # config.vm.provider "parallels" do |prl|
+  #     config.vm.box = "bento/ubuntu-20.04"
+  #     config.vm.box_version = "202107.08.0"
+
+  #     prl.name = vm_hostname
+  #     prl.linked_clone = true
+  #     prl.update_guest_tools = true
+  #     prl.memory = 1024
+  #     prl.cpus = 2
+
+  # end
+
+  # Create the git directory, so that other work can be added to it, and that the synced folder is just one subdirectory
+  config.vm.provision :shell, inline: "mkdir -p $HOME/git"
+
+  config.vm.provider "virtualbox" do |vb|
+    # Permit anyone to start the GUI
+    config.vm.provision "shell", name: "install virtualbox tools",  inline: "sudo apt-get install -y xfce4 virtualbox-guest-dkms virtualbox-guest-utils virtualbox-guest-x11"
+  end
+
+  config.vm.provider "vmware_desktop" do |v|
+      # env: {"VAGRANT_PASS"=>Shellwords.escape(ENV['VAGRANT_PASS'])}
+
+
+      # config.vm.synced_folder ".", "/home/vagrant/ansible", owner: "vagrant",
+      #   group: "vagrant", mount_options: ["uid=1000", "gid=1000"]
+      v.linked_clone = true
+      v.gui = true
+      v.ssh_info_public = true
+
+      # config.gui = true
+#      config.vm.network "private_network" #, type: dhcp
+      config.vm.network :private_network
+
+      config.ssh.forward_agent = true
+      v.vmx['guestOS'] = 'ubuntu-64'                      # select 'ubuntu-64' as 'guostOS' in VMware
+
+      v.vmx["memsize"] = vm_size["memory"]
+      v.vmx["numvcpus"] = vm_size["cpus"]
+      v.vmx["displayName"] = vm_name
+      v.vmx["ethernet0.present"] = "TRUE"
+
+      v.vmx["mks.enable3d"] = "TRUE"
+
+
+      # v.vmx["ethernet0.generatedAddress"] = nil
+      # v.vmx["ethernet0.addressType"] = "static"
+      # v.vmx["ethernet0.address"] = "00:0c:29:ac:f3:50"
+
+      # v.vmx["ethernet1.generatedAddress"] = nil
+      # v.vmx["ethernet1.addressType"] = "static"
+      # v.vmx["ethernet1.address"] = "00:0c:29:ac:f3:5a"
+
+
+      # v.vmx["ethernet0.connectionType"] = "nat"
+
+      # Enable full DND
+      v.vmx["isolation.tools.dnd.disable"] = "FALSE"
+      v.vmx["isolation.tools.copy.disable"] = "FALSE"
+      v.vmx["isolation.tools.paste.disable"] = "FALSE"
+      # v.vmx_custom_settings = [['vhv.enable', 'True']]
+  end
+
+
+
+  config.vm.provision :shell, name: "install azure-cli", inline: "curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash"
+  # # Run Ansible from the Vagrant VM
+  # config.vm.provision "ansible_local" do |ansible|
+  #   config.vm.synced_folder ".", "/vagrant"
+  #   ansible.playbook = "main.yml"
+  # end
+  # $script = <<-'SCRIPT'
+  #   ansible-galaxy install viasite-ansible.zsh --force
+  # SCRIPT
+
+  # Vagrant.configure("2") do |config|
+  #   config.vm.provision "shell", inline: $script
+  # end
+  # config.vm.provision "shell", inline: "cd /home/vagrant/ansible && sudo bash /home/vagrant/ansible/init-vagrant.sh"
+  # config.vm.provision "shell", inline: "cd /home/vagrant/ansible && sudo bash /home/vagrant/ansible/apply.vagrant.sh"
+  # # config.vm.provision :shell, inline: "curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash"
+  # Run Ansible from Host
+  # config.vm.provision "ansible" do |ansible|
+  #   config.vm.synced_folder ".", "/vagrant"
+  #   ansible.playbook = "main.yml"
+  #   ansible.galaxy_role_file = "requirements.yml"
+  # end
+
+  config.vm.provision :shell, name: "restart", inline: "sudo shutdown -r now"
+
+end
