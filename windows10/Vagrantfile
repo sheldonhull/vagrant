@@ -36,12 +36,22 @@ powershell -NoLogo -Command "choco install googlechrome powershell-core -y"
 powershell -NoLogo -Command "choco install virtualbox-guest-additions-guest.install -y"
 powershell -NoLogo -Command "choco install microsoft-windows-terminal -y"
 powershell -NoLogo -Command "choco install vscode -y"
+powershell -NoLogo -Command "choco install golang -y"
 # other apps manually grabbed
 powershell -NoLogo -Command "New-Item -ItemType Directory -Path 'c:/temp' -Force"
 # invoke-webrequest -Uri 'https://downloads.1password.com/win/1PasswordSetup-latest.exe' -OutFile 'c:/temp/1PasswordSetup-latest.exe'
 # Scoop Installation
 powershell -NoLogo -Command 'iex "& {$(irm get.scoop.sh)} -RunAsAdmin"'
+echo "set environment variables for go/bin"
+powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOPATH', '/home/vagrant/go', 'Machine')"
+powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOBIN', '/home/vagrant/go/bin', 'Machine')"
+powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', ('/home/vagrant/go/bin', $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
+echo "set environment variable for aqua project"
+powershell -NoLogo -Command "go install github.com/aquaproj/aqua/v2/cmd/aqua@latest"
+powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', (Join-Path $ENV:LOCALAPPDATA 'aquaproj-aqua' 'bin') , $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
 SCRIPT
+
+
 #. 'c:/temp/1PasswordSetup-latest.exe' --silent
 
 Vagrant.configure("2") do |config|
