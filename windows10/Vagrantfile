@@ -156,6 +156,25 @@ Vagrant.configure("2") do |config|
     # v.vmx_custom_settings = [['vhv.enable', 'True']]
   end
 
+
+  # Hyper-V Provider Specific Configuration
+  config.vm.provider "hyperv" do |h|
+    h.vmname = vm_hostname
+    h.enable_virtualization_extensions = true
+    h.linked_clone = true
+    h.cpus = 2
+    h.memory = 2048
+    h.maxmemory = 2048
+  end
+
+  config.vm.provider "hyperv" do |v|
+      # OVERRIDE WITH LOCAL BOX IF DESIRED 👉 override.vm.box = "file://builds/ubuntu2210-hyperv.box"
+      override.vm.network "public_network", bridge: "Default Switch"
+      override.vm.synced_folder '.', '/vagrant', disabled: true
+  end
+
+  config.vm.provision :file, source: '~/.gitconfig', destination: '/home/vagrant/.gitconfig'
+  config.vm.provision :directory, source: '~/.ssh', destination: '/home/vagrant/.ssh'
   # View the documentation for the provider you are using for more
   # information on available options.
 

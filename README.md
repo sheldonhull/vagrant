@@ -1,8 +1,10 @@
 # Vagrant
 
-## Install Taskfile
+## Install Mage
 
-[Install Taskfile](https://taskfile.dev/installation/) and run `task` to see list of prebuilt tasks that will setup and run/bring down the machines.
+Use [aqua](https://aquaproj.github.io/docs/install) or if comfortable with Go development install manually `go install github.com/magefile/mage@latest` (requires `GOPATH/bin` to be set in your environment variables).
+
+Run `mage` to see available tasks to spin up, provision, or tear down a VM.
 
 ## Snippets
 
