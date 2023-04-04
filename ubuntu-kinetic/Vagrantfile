@@ -116,6 +116,8 @@ Vagrant.configure("2") do |config|
   # config.vm.provision :shell, inline: "sudo apt-get -yqq install -y firefox"
   # config.vm.provision :shell, name: "remove azure cli", inline: "sudo apt-get -yqq remove azure-cli -y && sudo apt-get -yqq autoremove"
   config.vm.provision :shell, name: "add vagrant pass for ansible or other usage", inline: "echo '#{vagrant_pass}' > /home/vagrant/.vault_pass"
+  config.vm.provision :shell, name: "install aqua", inline: "curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/v2.0.2/aqua-installer | bash"
+
 
 
   # config.vm.provision :shell, inline: "ansible-galaxy collection install jaybeede.linux_desktop"
