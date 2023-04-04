@@ -33,22 +33,22 @@ powershell -NoLogo -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [
 # install choco
 
 powershell -NoLogo -Command "choco install googlechrome powershell-core -y"
-powershell -NoLogo -Command "choco install virtualbox-guest-additions-guest.install -y"
-powershell -NoLogo -Command "choco install microsoft-windows-terminal -y"
-powershell -NoLogo -Command "choco install vscode -y"
-powershell -NoLogo -Command "choco install golang -y"
+pwsh -NoLogo -Command "choco install virtualbox-guest-additions-guest.install -y"
+pwsh -NoLogo -Command "choco install microsoft-windows-terminal -y"
+pwsh -NoLogo -Command "choco install vscode -y"
+pwsh -NoLogo -Command "choco install golang -y"
 # other apps manually grabbed
-powershell -NoLogo -Command "New-Item -ItemType Directory -Path 'c:/temp' -Force"
+pwsh -NoLogo -Command "New-Item -ItemType Directory -Path 'c:/temp' -Force"
 # invoke-webrequest -Uri 'https://downloads.1password.com/win/1PasswordSetup-latest.exe' -OutFile 'c:/temp/1PasswordSetup-latest.exe'
 # Scoop Installation
-powershell -NoLogo -Command 'iex "& {$(irm get.scoop.sh)} -RunAsAdmin"'
+pwsh -NoLogo -Command 'iex "& {$(irm get.scoop.sh)} -RunAsAdmin"'
 echo "set environment variables for go/bin"
-powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOPATH', '/home/vagrant/go', 'Machine')"
-powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOBIN', '/home/vagrant/go/bin', 'Machine')"
-powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', ('/home/vagrant/go/bin', $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOPATH', '/home/vagrant/go', 'Machine')"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOBIN', '/home/vagrant/go/bin', 'Machine')"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', ('/home/vagrant/go/bin', $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
 echo "set environment variable for aqua project"
-powershell -NoLogo -Command "go install github.com/aquaproj/aqua/v2/cmd/aqua@latest"
-powershell -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', (Join-Path $ENV:LOCALAPPDATA 'aquaproj-aqua' 'bin') , $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
+pwsh -NoLogo -Command "go install github.com/aquaproj/aqua/v2/cmd/aqua@latest"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', ((Join-Path $ENV:LOCALAPPDATA 'aquaproj-aqua' 'bin') , $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
 SCRIPT
 
 
