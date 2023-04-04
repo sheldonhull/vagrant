@@ -1,0 +1,6 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  // https://docs.renovatebot.com/config-presets/#github
+  extends: ['github>sheldonhull/renovate:default.json5']
+
+}
