@@ -23,7 +23,7 @@ import (
 // Vagrant runs commands that are interactive and magical
 func Vagrant() error {
 	r, _ := pterm.DefaultInteractiveSelect.
-		WithOptions([]string{"ubuntu-kinetic", "windows10"}).
+		WithOptions([]string{"ubuntu-kinetic", "windows10", "windows11"}).
 		WithDefaultText("Select a VM to bring up").
 		Show()
 	pterm.Info.Printfln("Opening: %s", r)
@@ -69,5 +69,27 @@ func Upgrade() error {
 
 // Init sets up as much tooling as possible, such as vagrant plugins.
 func Init() error {
-	return sh.RunV("vagrant", "plugin", "install", "vagrant-vmware-desktop")
+	switch runtime.GOOS {
+	case "darwin":
+		if err := sh.RunV("brew", "install", "hashicorp-vagrant"); err != nil {
+			pterm.Error.Printfln("can't install required plugin: %v")
+			pterm.Error.Println("visit https://www.vagrantup.com/docs/providers/vmware/installation")
+			return err
+		}
+		if err := sh.RunV("vagrant", "plugin", "install", "vagrant-vmware-desktop"); err != nil {
+			pterm.Error.Printfln("can't install required plugin: %v")
+			pterm.Error.Println("visit https://www.vagrantup.com/docs/providers/vmware/installation")
+			return err
+		}
+		if err := sh.RunV("brew", "install", "vagrant-vmware-utility"); err != nil {
+			pterm.Error.Printfln("can't install required utility: %v")
+			pterm.Error.Println("visit https://developer.hashicorp.com/vagrant/docs/providers/vmware/vagrant-vmware-utility")
+			return err
+		}
+	case "linux":
+		pterm.Warning.Println("not automated")
+	case "windows":
+		pterm.Warning.Println("not automated")
+	}
+	return nil
 }
