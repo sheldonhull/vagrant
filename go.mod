@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/magefile/mage v1.15.0
-	github.com/pterm/pterm v0.12.66
+	github.com/pterm/pterm v0.12.67
 )
 
 require (
