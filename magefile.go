@@ -24,7 +24,7 @@ import (
 // Vagrant runs commands that are interactive and magical
 func Vagrant() error {
 	r, _ := pterm.DefaultInteractiveSelect.
-		WithOptions([]string{"ubuntu-kinetic", "windows10", "windows11"}).
+		WithOptions([]string{"ubuntu-kinetic", "windows10", "windows11", "windows-server-2022"}).
 		WithDefaultText("Select a VM to bring up").
 		Show()
 	pterm.Info.Printfln("Opening: %s", r)
