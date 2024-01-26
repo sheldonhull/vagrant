@@ -73,22 +73,29 @@ func Init() error {
 	switch runtime.GOOS {
 	case "darwin":
 		if err := sh.RunV("brew", "install", "hashicorp-vagrant"); err != nil {
-			pterm.Error.Printfln("can't install required plugin: %v")
+			pterm.Error.Println("can't install required plugin: hashicorp-vagrant")
 			pterm.Error.Println("visit https://www.vagrantup.com/docs/providers/vmware/installation")
 			return err
 		}
 		if err := sh.RunV("vagrant", "plugin", "install", "vagrant-vmware-desktop"); err != nil {
-			pterm.Error.Printfln("can't install required plugin: %v")
+			pterm.Error.Println("can't install required plugin: vagrant-vmware-desktop")
 			pterm.Error.Println("visit https://www.vagrantup.com/docs/providers/vmware/installation")
 			return err
 		}
 		if err := sh.RunV("brew", "install", "vagrant-vmware-utility"); err != nil {
-			pterm.Error.Printfln("can't install required utility: %v")
+			pterm.Error.Println("can't install required utility: vagrant-vmware-utility")
 			pterm.Error.Println("visit https://developer.hashicorp.com/vagrant/docs/providers/vmware/vagrant-vmware-utility")
 			return err
 		}
 	case "linux":
-		pterm.Warning.Println("not automated")
+		pterm.Warning.Println("not automated fully, you'll need to run the installation steps from link below:")
+		pterm.Warning.Println("visit https://developer.hashicorp.com/vagrant/docs/providers/vmware/vagrant-vmware-utility")
+		if err := sh.RunV("vagrant", "plugin", "install", "vagrant-vmware-desktop"); err != nil {
+			pterm.Error.Println("can't install required plugin: vagrant-vmware-desktop")
+			pterm.Error.Println("visit https://www.vagrantup.com/docs/providers/vmware/installation")
+			return err
+		}
+
 	case "windows":
 		pterm.Warning.Println("not automated")
 	}
