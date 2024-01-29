@@ -1,0 +1,227 @@
+# Windows Containers On Windows
+
+
+# vagrant plugin install vagrant-vbguest
+# vagrant plugin install vagrant-vbguest
+require 'json'
+if  ENV['VAGRANT_PASS'].nil?
+    raise 'You must set the environment variables "VAGRANT_PASS".'
+end
+vagrant_pass = ENV['VAGRANT_PASS']
+provider=ENV['PROVIDER'] || 'vmware_desktop'
+vm_name = "windows-server-2022"
+vm_hostname = "vagrant-windows-server-2022"
+vm_size = {"cpus" => 4, "memory" => 4096}
+
+# Attach an extra disk if the VM defaults aren't enough...
+extra_disk_enabled = true
+extra_disk_size_gb = 25
+extra_disk_mount_point = "/srv/data"
+
+# Location of the external files used by this script...
+vagrant_assets = File.dirname(__FILE__) + "/vagrant"
+
+# Someone may need to (locally) override the VM size for some specific task...
+vm_size_override = File.dirname(__FILE__) + "/.vagrant_size.json"
+if File.exists?(vm_size_override)
+  vm_size = JSON.parse(File.read(vm_size_override))
+end
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+$script = <<-SCRIPT
+powershell -NoLogo -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
+powershell -NoLogo -Command 'choco upgrade pwsh -y'
+
+powershell -NoLogo -Command 'wsl --install -d Ubuntu-22.04 '
+pwsh -NoLogo -Command 'choco feature enable -n=allowGlobalConfirmation'
+pwsh -NoLogo -Command 'choco feature disable -n=exitOnRebootDetected'
+pwsh -NoLogo -Command 'choco feature enable -n=useRememberedArgumentsForUpgrades'
+pwsh -NoLogo -Command 'choco config set commandExecutionTimeoutInSeconds 1200'
+pwsh -NoLogo -Command 'New-Item "C:/choco-cache" -ItemType Directory -Force -ErrorAction SilentlyContinue'
+pwsh -NoLogo -Command 'choco config set cacheLocation "C:/choco-cache"'
+pwsh -NoLogo -Command 'choco feature disable -n=powershellHost'
+pwsh -NoLogo -Command 'choco feature disable -n=showDownloadProgress'
+
+pwsh -NoLogo -Command 'Set-PSRepository -Name PSGallery -InstallationPolicy Trusted'
+pwsh -NoLogo -Command 'choco upgrade git -y'
+# pwsh -NoLogo -Command 'choco upgrade docker-engine --params="'/DockerGroup:docker-users'" -y'
+pwsh -NoLogo -Command 'choco upgrade docker-cli -y'
+pwsh -NoLogo -Command 'choco upgrade golang -y'
+pwsh -NoLogo -Command '&sc.exe config docker start= delayed-auto'
+
+
+powershell -NoLogo -Command "choco install googlechrome -y"
+pwsh -NoLogo -Command "choco install virtualbox-guest-additions-guest.install -y"
+pwsh -NoLogo -Command "choco install microsoft-windows-terminal -y"
+pwsh -NoLogo -Command "choco install vscode -y"
+# other apps manually grabbed
+pwsh -NoLogo -Command "New-Item -ItemType Directory -Path 'c:/temp' -Force"
+# invoke-webrequest -Uri 'https://downloads.1password.com/win/1PasswordSetup-latest.exe' -OutFile 'c:/temp/1PasswordSetup-latest.exe'
+# Scoop Installation
+pwsh -NoLogo -Command 'iex "& {$(irm get.scoop.sh)} -RunAsAdmin"'
+echo "set environment variables for go/bin"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOPATH', '/home/vagrant/go', 'Machine')"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('GOBIN', '/home/vagrant/go/bin', 'Machine')"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', ('/home/vagrant/go/bin', $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
+echo "set environment variable for aqua project"
+pwsh -NoLogo -Command "go install github.com/aquaproj/aqua/v2/cmd/aqua@latest"
+pwsh -NoLogo -Command "[Environment]::SetEnvironmentVariable('PATH', ((Join-Path $ENV:LOCALAPPDATA 'aquaproj-aqua' 'bin') , $ENV:PATH -join [IO.Path]::PathSeparator), 'Machine')"
+SCRIPT
+
+
+#. 'c:/temp/1PasswordSetup-latest.exe' --silent
+
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+
+  config.vm.box = "gusztavvargadr/windows-server"
+
+
+
+  config.vm.provision "shell", name: "enable windows feature", inline: "dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart"
+  config.vm.provision "shell", name: "enable windows feature", inline: "dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart"
+  config.vm.provision 'shell', reboot: true
+  config.vm.provision "shell", name: "enable wsl2", inline: "wsl --set-default-version 2"
+  config.vm.provision "shell", name: "enable windows feature", inline: "wsl --install -d Ubuntu-22.04"
+  config.vm.provision 'shell', reboot: true
+  config.vm.provision "shell", name: "run other provisioning commands (chocolatey, scoop, apps, etc)", inline: $script
+
+  # Support git operations inside the VM. The file provisioner requires files to exist,
+  # which in this case is a good thing as it prevents commits attributed to wrong users...
+  config.vm.provision "file", source: "~/.gitconfig", destination: "~/.gitconfig"
+
+  # Make the local user's SSH key reachable by the main provisioning script...
+  config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "/tmp/id_rsa.pub"
+  config.vm.provision :shell, inline: "mkdir -p %USERPROFILE%/git"
+
+
+#  config.vm.provision :shell, inline: "sudo apt-get -yqq remove azure-cli -y && sudo apt-get -yqq autoremove"
+
+  # vagrant vbguest --do install
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # NOTE: This will enable public access to the opened port
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = true
+    # Customize the amount of memory on the VM:
+    vb.memory = "8000"
+  end
+
+  # config.vm.provider "virtualbox" do |vb|
+  #   vb.vbguest.auto_update =
+  #   vb.vbguest.no_remote = false
+
+  # end
+
+  config.vm.provider "virtualbox" do |v|
+    v.check_guest_additions = false
+    v.memory = 8000
+    v.cpus = 4
+    v.customize ["modifyvm", :id,
+    "--cpuexecutioncap", "80",
+    "--paravirtprovider", "default", # for linux guest
+  ]
+    v.customize ["modifyvm", :id, "--audioout", "on"]
+  end
+
+
+  config.vm.provider "vmware_desktop" do |v|
+    # env: {"VAGRANT_PASS"=>Shellwords.escape(ENV['VAGRANT_PASS'])}
+    # config.vm.synced_folder ".", "/home/vagrant/ansible", owner: "vagrant",
+    #   group: "vagrant", mount_options: ["uid=1000", "gid=1000"]
+
+
+    # config.vm.synced_folder "../", "/home/vagrant/git/thisrepo", owner: "vagrant",
+    #   group: "vagrant", mount_options: ["uid=1000", "gid=1000"]
+
+    v.gui = true
+    config.vm.network "private_network" #, type: dhcp
+    # config.ssh.forward_agent = true
+
+    #vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+
+
+    v.vmx["gui.fullscreenatpoweron"] = "FALSE"
+    v.vmx["memsize"] = vm_size["memory"]
+    v.vmx["numvcpus"] = vm_size["cpus"]
+    v.vmx["displayName"] = vm_name
+    v.vmx["ethernet0.present"] = "TRUE"
+    v.vmx["ethernet0.connectionType"] = "nat"
+
+    # Enable full DND
+    v.vmx["isolation.tools.dnd.disable"] = "FALSE"
+    v.vmx["isolation.tools.copy.disable"] = "FALSE"
+    v.vmx["isolation.tools.paste.disable"] = "FALSE"
+    # v.vmx_custom_settings = [['vhv.enable', 'True']]
+  end
+
+
+  # Hyper-V Provider Specific Configuration
+  config.vm.provider "hyperv" do |h|
+    h.vmname = vm_hostname
+    h.enable_virtualization_extensions = true
+    h.linked_clone = true
+    h.cpus = 2
+    h.memory = 2048
+    h.maxmemory = 2048
+  end
+
+  config.vm.provider "hyperv" do |v|
+      # OVERRIDE WITH LOCAL BOX IF DESIRED 👉 override.vm.box = "file://builds/ubuntu2210-hyperv.box"
+      v.vm.network "public_network", bridge: "Default Switch"
+      v.vm.synced_folder '.', '/vagrant', disabled: true
+  end
+
+  config.vm.provision :file, source: '~/.gitconfig', destination: '/home/vagrant/.gitconfig'
+  config.vm.provision :file, source: '~/.ssh', destination: '/home/vagrant/.ssh'
+  # View the documentation for the provider you are using for more
+  # information on available options.
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Ansible, Chef, Docker, Puppet and Salt are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   apt-get update
+  #   apt-get install -y apache2
+  # SHELL
+end
