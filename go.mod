@@ -2,7 +2,7 @@ module vagrant.local
 
 go 1.21
 
-toolchain go1.21.4
+toolchain go1.22.2
 
 require (
 	github.com/magefile/mage v1.15.0
