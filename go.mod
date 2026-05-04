@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.26.2
 
 require (
-	github.com/magefile/mage v1.17.1
+	github.com/magefile/mage v1.17.2
 	github.com/pterm/pterm v0.12.83
 )
 
